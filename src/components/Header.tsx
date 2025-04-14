@@ -3,17 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { Session } from "@supabase/supabase-js";
 
 export default function Header() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Obtém sessão atual
+    // Obtém a sessão atual
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Escuta mudanças de autenticação
+    // Inscreve-se em mudanças na autenticação
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -32,16 +33,13 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md flex items-center justify-between px-4 py-3">
-      {/* Logo */}
       <Link href="/">
-        <img src="/futeBagresLogoGold.png" alt="Logo" className="h-10 cursor-pointer" />
+        {/* Se preferir, substitua por <Image> do next/image */}
+        <img src="/logo.png" alt="Logo" className="h-10 cursor-pointer" />
       </Link>
-
-      {/* Navegação */}
       <nav>
         {session ? (
           <div className="flex items-center space-x-4">
-            {/* Opções do usuário logado */}
             <button
               onClick={handleLogout}
               className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
