@@ -37,7 +37,7 @@ export default function AuthPage() {
         setIsModalOpen(true);
         // Exemplo: redirecionar depois de 2s
         setTimeout(() => {
-          router.push("/dashboard"); // ou onde quiser
+          router.push("/profile"); // ou onde quiser
         }, 2000);
       }
     } else {
