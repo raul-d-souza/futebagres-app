@@ -7,16 +7,12 @@ import { useRouter } from "next/navigation";
 export default function AuthPage() {
   const router = useRouter();
 
-  // Campos do form
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
 
-  // Para alternar entre 'login' e 'cadastro'
   const [modo, setModo] = useState<"login" | "cadastro">("login");
-
-  // Para mostrar Modal de feedback
   const [modalMessage, setModalMessage] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -24,7 +20,6 @@ export default function AuthPage() {
     e.preventDefault();
 
     if (modo === "login") {
-      // LOGIN
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password: senha,
@@ -35,32 +30,46 @@ export default function AuthPage() {
       } else {
         setModalMessage("Login realizado com sucesso!");
         setIsModalOpen(true);
-        // Exemplo: redirecionar depois de 2s
         setTimeout(() => {
-          router.push("/profile"); // ou onde quiser
+          router.push("/dashboard");
         }, 2000);
       }
     } else {
-      // CADASTRO
-      // Vamos gravar o telefone em 'phone' e o nome em user_metadata
-      const { error } = await supabase.auth.signUp({
-        email,
-        password: senha,
-        phone: telefone, // se quiser usar o campo phone nativo
-        options: {
-          data: {
-            full_name: nome, // user_metadata.full_name
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email,
+          password: senha,
+          phone: telefone,
+          options: {
+            data: {
+              full_name: nome,
+            },
           },
-        },
-      });
-      if (error) {
-        setModalMessage(error.message);
+        });
+
+      if (signUpError) {
+        setModalMessage(signUpError.message);
         setIsModalOpen(true);
       } else {
-        // Cadastro bem-sucedido
+        // Cria linha na tabela profiles
+        await supabase.from("profiles").insert([
+          {
+            user_id: signUpData.user?.id,
+            name: nome,
+            avatar_url: "",
+            ratings: {
+              passe: 0,
+              finalizacao: 0,
+              velocidade: 0,
+              defesa: 0,
+              condicionamento: 0,
+            },
+            description: "",
+          },
+        ]);
+
         setModalMessage("Cadastro realizado com sucesso! Faça login agora.");
         setIsModalOpen(true);
-        // Redirecionar para login depois de alguns segundos
         setTimeout(() => {
           setModo("login");
           setIsModalOpen(false);
@@ -71,7 +80,6 @@ export default function AuthPage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex items-center justify-center bg-gray-100">
-      {/* IMAGEM DE FUNDO (Gol) - Ajuste se necessário */}
       <img
         src="/GolPNG.png"
         alt="Gol de Futebol"
@@ -79,7 +87,6 @@ export default function AuthPage() {
         style={{ zIndex: 0, top: "100px" }}
       />
 
-      {/* FORMULÁRIO */}
       <form
         onSubmit={handleSubmit}
         className="relative z-10 bg-white/90 backdrop-blur-sm p-8 rounded shadow-md w-full max-w-md mx-4"
@@ -88,7 +95,6 @@ export default function AuthPage() {
           {modo === "login" ? "Fazer Login" : "Fazer Cadastro"}
         </h2>
 
-        {/* Se for cadastro, exibir campos de Nome e Telefone */}
         {modo === "cadastro" && (
           <>
             <label className="block text-gray-700 mb-2">Nome Completo</label>
@@ -151,7 +157,6 @@ export default function AuthPage() {
         </p>
       </form>
 
-      {/* MODAL */}
       {isModalOpen && (
         <div className="absolute z-50 top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded shadow-md w-full max-w-sm">

@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
+import { EditProfileModal } from "@/components/EditProfileModal";
 
-// Tipos para os dados do perfil e dos eventos
+// Tipos
 type Ratings = {
   passe: number;
   finalizacao: number;
@@ -21,6 +22,7 @@ type ProfileData = {
   followers: number;
   following: number;
   ratings: Ratings;
+  description?: string;
 };
 
 type EventData = {
@@ -30,23 +32,20 @@ type EventData = {
   date: string;
 };
 
-// Componente para exibição ou edição das estrelas (no nosso caso, apenas para exibir)
 const StarRating = ({ rating }: { rating: number }) => {
   return (
-    <div className="flex">
+    <div className="flex space-x-1">
       {[1, 2, 3, 4, 5].map((star) => (
         <svg
           key={star}
           xmlns="http://www.w3.org/2000/svg"
-          className="w-5 h-5"
+          className={`w-5 h-5 ${
+            star <= rating ? "fill-yellow-400" : "fill-none"
+          }`}
           viewBox="0 0 24 24"
-          fill={star <= rating ? "gold" : "none"}
-          stroke="gold"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          stroke="currentColor"
         >
-          <path d="M11.48 3.499c.242-.733.793-.733 1.035 0l2.147 6.49a.613.613 0 00.581.422h6.723c.788 0 1.11 1.009.48 1.48l-5.456 3.963a.613.613 0 00-.221.685l2.086 6.537c.24.75-.198 1.198-.825.826l-5.416-3.4a.613.613 0 00-.66 0l-5.416 3.4c-.627.372-1.066-.076-.825-.826l2.086-6.537a.613.613 0 00-.221-.685l-5.456-3.963c-.63-.47-.308-1.48.48-1.48h6.724a.613.613 0 00.58-.422l2.148-6.49z" />
+          <path d="M12 .587l3.668 7.431L24 9.75l-6 5.848 1.416 8.267L12 18.896l-7.416 4.969L6 15.598 0 9.75l8.332-1.732z" />
         </svg>
       ))}
     </div>
@@ -57,7 +56,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
-  // Estado para controlar a aba ativa: "overview", "eventos", ou "autoavaliacao"
   const [activeTab, setActiveTab] = useState<
     "overview" | "eventos" | "autoavaliacao"
   >("overview");
@@ -73,22 +71,15 @@ export default function ProfilePage() {
         return;
       }
 
-      // Busca os dados do perfil na tabela "profiles"
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", session.user.id)
         .single();
 
-      if (error) {
-        console.error("Erro ao buscar perfil:", error.message);
-      } else if (data) {
-        setProfile({
-          name:
-            data.name ||
-            data.full_name ||
-            session.user.email ||
-            "Usuário sem nome",
+      if (data) {
+        const initialProfile: ProfileData = {
+          name: data.name || "Usuário",
           username: data.username || session.user.email,
           avatar_url: data.avatar_url || "https://placehold.co/300x300",
           followers: data.followers || 0,
@@ -100,18 +91,13 @@ export default function ProfilePage() {
             defesa: 0,
             condicionamento: 0,
           },
-        });
+          description: data.description || "",
+        };
+        setProfile(initialProfile);
       }
 
-      // Opcional: Busca os eventos (caso tenha dados na tabela "events")
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("events")
-        .select("*");
-      if (eventsError) {
-        console.error("Erro ao buscar eventos:", eventsError.message);
-      } else if (eventsData) {
-        setEvents(eventsData as EventData[]);
-      }
+      const { data: eventsData } = await supabase.from("events").select("*");
+      if (eventsData) setEvents(eventsData);
     })();
   }, [router]);
 
@@ -124,81 +110,49 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden">
-      {/* Fundo: Campo de futebol */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundColor: "#0b7a0b",
-          backgroundImage: `repeating-linear-gradient(
-            to bottom,
-            rgba(255, 255, 255, 0.15) 0,
-            rgba(255, 255, 255, 0.15) 4%,
-            transparent 4%,
-            transparent 8%
-          )`,
-          backgroundSize: "100% 40px",
-        }}
-      />
+    <main className="relative w-screen min-h-screen overflow-y-auto flex justify-center py-10 px-4">
+      {/* Fundo */}
+      <div className="absolute inset-0 bg-green-700" />
       <div className="absolute inset-0 border-8 border-white pointer-events-none"></div>
-      <div className="absolute left-0 right-0 top-1/2 h-[4px] bg-white pointer-events-none"></div>
       <div className="absolute top-1/2 left-1/2 w-32 h-32 -translate-x-1/2 -translate-y-1/2 border-8 border-white rounded-full pointer-events-none flex items-center justify-center">
         <img
           src="/futeBagresLogoWhite.png"
-          alt="Logo FuteBagres"
+          alt="Logo"
           className="w-24 h-auto"
         />
       </div>
 
-      {/* Card para o Conteúdo */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg w-full max-w-6xl p-8">
-          {/* Header do Card */}
+      {/* Card centralizado */}
+      <div className="relative z-10 w-full max-w-6xl px-4 py-8">
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-8">
+          <div className="flex justify-between items-center mb-4">
+            <nav className="flex space-x-6 border-b border-gray-700 w-full">
+              {["overview", "eventos", "autoavaliacao"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  className={`py-3 px-2 border-b-2 ${
+                    activeTab === tab
+                      ? "border-red-500 font-semibold text-gray-800"
+                      : "border-transparent text-gray-500 hover:text-gray-800 transition"
+                  }`}
+                >
+                  {tab[0].toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </nav>
+            <EditProfileModal
+              profile={profile}
+              onSave={(data: any) => setProfile((prev) => ({ ...prev!, ...data }))}
+            />
+          </div>
 
-          {/* Navegação das Abas */}
-          <nav className="border-b border-gray-700 mb-6">
-            <div className="flex space-x-6">
-              <button
-                onClick={() => setActiveTab("overview")}
-                className={`py-3 px-2 border-b-2 ${
-                  activeTab === "overview"
-                    ? "border-red-500 font-semibold text-gray-800"
-                    : "border-transparent text-gray-500 hover:text-gray-800 transition"
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab("eventos")}
-                className={`py-3 px-2 border-b-2 ${
-                  activeTab === "eventos"
-                    ? "border-red-500 font-semibold text-gray-800"
-                    : "border-transparent text-gray-500 hover:text-gray-800 transition"
-                }`}
-              >
-                Eventos
-              </button>
-              <button
-                onClick={() => setActiveTab("autoavaliacao")}
-                className={`py-3 px-2 border-b-2 ${
-                  activeTab === "autoavaliacao"
-                    ? "border-red-500 font-semibold text-gray-800"
-                    : "border-transparent text-gray-500 hover:text-gray-800 transition"
-                }`}
-              >
-                Autoavaliação
-              </button>
-            </div>
-          </nav>
-
-          {/* Conteúdo Condicional */}
           {activeTab === "overview" && (
-            <div className="flex flex-col md:flex-row md:space-x-8">
-              {/* Coluna Esquerda: Foto e dados básicos */}
-              <div className="md:w-1/3 flex flex-col items-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
+              <div className="flex flex-col items-center">
                 <Image
                   src={profile.avatar_url}
-                  alt="User avatar"
+                  alt="Avatar"
                   width={200}
                   height={200}
                   className="rounded-full border-4 border-gray-900"
@@ -207,38 +161,19 @@ export default function ProfilePage() {
                   {profile.name}
                 </h2>
                 <p className="text-gray-500">{profile.username}</p>
-                <div className="mt-2 flex items-center text-sm">
-                  <svg
-                    className="mr-1"
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                  </svg>
+                <div className="mt-2 text-sm text-gray-600">
                   <span className="font-semibold">{profile.followers}</span>{" "}
-                  followers
-                  <span className="mx-1">·</span>
-                  <span className="font-semibold">
-                    {profile.following}
-                  </span>{" "}
+                  followers ·{" "}
+                  <span className="font-semibold">{profile.following}</span>{" "}
                   following
                 </div>
               </div>
-              {/* Coluna Direita: Informações gerais */}
-              <div className="md:w-2/3 mt-6 md:mt-0">
+
+              <div className="md:col-span-2 flex flex-col">
                 <h3 className="text-xl font-semibold text-gray-800">Sobre</h3>
                 <p className="mt-2 text-gray-700">
-                  Aqui você pode adicionar uma breve biografia, informações
-                  sobre suas experiências ou detalhes gerais do seu perfil.
+                  {profile.description || "Nenhuma descrição adicionada ainda."}
                 </p>
-                {/* Você pode adicionar outros detalhes conforme necessário */}
               </div>
             </div>
           )}
@@ -282,15 +217,14 @@ export default function ProfilePage() {
                 Autoavaliação
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {profile.ratings &&
-                  Object.entries(profile.ratings).map(([aspecto, valor]) => (
-                    <div key={aspecto} className="flex items-center space-x-2">
-                      <span className="capitalize text-gray-600 font-medium w-28">
-                        {aspecto}:
-                      </span>
-                      <StarRating rating={valor} />
-                    </div>
-                  ))}
+                {Object.entries(profile.ratings).map(([aspecto, valor]) => (
+                  <div key={aspecto} className="flex items-center space-x-2">
+                    <span className="capitalize text-gray-600 font-medium w-32">
+                      {aspecto}:
+                    </span>
+                    <StarRating rating={valor} />
+                  </div>
+                ))}
               </div>
             </div>
           )}
